@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RegressIt</title>
+<meta name="theme-color" content="#2F6DF6">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF3FF; --panel:#FFFFFF; --ink:#161E2E; --ink-soft:#5C6678;
+    --accent:#2F6DF6; --accent-soft:#DDE8FE;
+    --sklearn:#7048E8; --sklearn-soft:#E5DBFF;
+    --best:#12B886; --guess:#F76707; --sun:#FFC145; --pink:#FF5D8F;
+    --line:#161E2E; --radius:18px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--ink); font-family:'Poppins',sans-serif; min-height:100vh; display:flex; justify-content:center; -webkit-font-smoothing:antialiased; }
+  .app{ width:100%; max-width:520px; min-height:100vh; display:flex; flex-direction:column; padding-bottom:26px; }
+  .pop{ background:var(--panel); border:2.5px solid var(--line); border-radius:var(--radius); box-shadow:5px 5px 0 var(--line); }
+  .hidden{ display:none !important; }
+  body::before{ content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background-image:radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--accent) 20%, transparent) 0, transparent 42%),
+    radial-gradient(circle at 88% 14%, color-mix(in srgb, var(--best) 15%, transparent) 0, transparent 40%); }
+
+  /* setup */
+  .setup{ padding:26px 20px; }
+  .setup h2{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:26px; margin:0 0 4px; }
+  .setup .lead{ color:var(--ink-soft); font-size:13.5px; font-weight:500; margin:0 0 22px; line-height:1.5; }
+  .field{ margin-bottom:18px; }
+  .field > label{ display:block; font-family:'Fredoka',sans-serif; font-weight:600; font-size:14px; margin-bottom:8px; }
+  .field input[type=text]{ width:100%; padding:12px 13px; border-radius:12px; border:2px solid var(--line); font-family:'Poppins',sans-serif; font-size:14px; background:var(--bg); color:var(--ink); }
+  input:focus-visible, button:focus-visible, .swatch:focus-visible{ outline:3px solid var(--sun); outline-offset:2px; }
+  .swatches{ display:flex; flex-wrap:wrap; gap:10px; }
+  .swatch{ width:44px; height:44px; border-radius:14px; border:2.5px solid var(--line); cursor:pointer; position:relative; box-shadow:3px 3px 0 var(--line); }
+  .swatch[aria-pressed=true]::after{ content:"\2713"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:20px; text-shadow:0 1px 2px rgba(0,0,0,.4); }
+  .hex-row{ display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .hex-preview{ width:44px; height:44px; border-radius:14px; border:2.5px solid var(--line); box-shadow:3px 3px 0 var(--line); flex-shrink:0; }
+  .hex-wrap{ flex:1; display:flex; align-items:center; gap:6px; padding:0 12px; border:2px solid var(--line); border-radius:12px; background:var(--bg); }
+  .hex-wrap span{ font-family:'Fredoka',sans-serif; font-weight:600; color:var(--ink-soft); font-size:15px; }
+  .hex-wrap input#in-hex{ flex:1; min-width:0; border:none; background:transparent; padding:11px 0; margin:0; border-radius:0; box-shadow:none; width:auto; font-family:'Poppins',sans-serif; font-size:14px; color:var(--ink); text-transform:uppercase; letter-spacing:.04em; }
+  .hex-wrap input#in-hex:focus-visible{ outline:none; }
+  .hex-wrap.invalid{ border-color:#F0524B; }
+
+  .btn{ padding:12px 18px; border-radius:13px; border:2.5px solid var(--line); font-family:'Fredoka',sans-serif; font-weight:600; font-size:14px; cursor:pointer; color:var(--ink); background:var(--sun); box-shadow:4px 4px 0 var(--line); transition:transform .1s ease; }
+  .btn:active{ transform:translate(3px,3px); box-shadow:1px 1px 0 var(--line); }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+  .btn.full{ width:100%; }
+  .btn.go{ background:var(--best); color:#fff; }
+  .btn.sm{ font-size:12px; padding:8px 12px; box-shadow:3px 3px 0 var(--line); }
+  .btn.ghost{ background:var(--panel); }
+
+  /* app bar */
+  .appbar{ display:flex; align-items:center; gap:12px; padding:22px 20px 14px; }
+  .logo{ width:44px; height:44px; border-radius:14px; background:var(--accent); border:2.5px solid var(--line); box-shadow:4px 4px 0 var(--line); display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+  .appbar h1{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:23px; margin:0; word-break:break-word; }
+  .appbar p{ margin:2px 0 0; font-size:12px; color:var(--ink-soft); font-weight:500; }
+  .edit-btn{ margin-left:auto; flex-shrink:0; width:38px; height:38px; border-radius:12px; border:2.5px solid var(--line); background:var(--panel); box-shadow:3px 3px 0 var(--line); cursor:pointer; font-size:15px; }
+
+  .card{ margin:0 20px 16px; padding:16px; }
+  .card > h3{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:15px; margin:0 0 12px; }
+
+  canvas#plot{ width:100%; height:auto; display:block; border-radius:12px; border:2px solid var(--line); background:#fff; touch-action:none; }
+
+  .toggles{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .toggle{ flex:1 1 auto; min-width:120px; display:flex; align-items:center; gap:8px; padding:9px 12px; border:2px solid var(--line); border-radius:11px; background:var(--panel); cursor:pointer; font-size:12.5px; font-weight:600; font-family:'Poppins',sans-serif; }
+  .toggle .dot{ width:14px; height:14px; border-radius:4px; border:2px solid var(--line); flex-shrink:0; }
+  .toggle[aria-pressed=true]{ background:var(--accent-soft); }
+  .toggle .dot.on{ background:var(--accent); }
+  .dot.best{ background:var(--best); } .dot.guess{ background:var(--guess); } .dot.resid{ background:var(--pink); } .dot.sklearn{ background:var(--sklearn); }
+  .import-drop{ border:2.5px dashed var(--sklearn); border-radius:12px; padding:16px; text-align:center; background:var(--sklearn-soft); cursor:pointer; }
+  .import-drop:hover{ background:#EFE7FF; }
+  .import-drop .big{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:14px; color:var(--sklearn); }
+  .import-drop .sub{ font-size:12px; color:var(--ink-soft); margin-top:4px; }
+  .model-info{ margin-top:12px; padding:12px 14px; border:2px solid var(--sklearn); border-radius:12px; background:var(--sklearn-soft); font-size:13px; line-height:1.5; display:none; }
+  .model-info .eqm{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:16px; color:var(--sklearn); }
+  .model-info .cmp{ margin-top:8px; padding-top:8px; border-top:1px solid var(--sklearn); }
+  .import-err{ margin-top:10px; background:#FFE3E3; border:2px solid #F03E3E; border-radius:10px; padding:9px 12px; font-size:12.5px; color:#C92A2A; display:none; }
+
+  .stat-grid{ display:flex; gap:10px; flex-wrap:wrap; }
+  .stat{ flex:1 1 30%; min-width:90px; background:var(--accent-soft); border:2px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .stat .k{ font-size:11px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+  .stat .v{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:18px; margin-top:2px; }
+  .eq{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:20px; color:var(--accent); text-align:center; padding:6px 0 2px; }
+
+  table.data{ width:100%; border-collapse:collapse; font-size:14px; }
+  table.data th{ background:var(--accent); color:#fff; padding:7px 8px; font-family:'Fredoka',sans-serif; font-weight:600; font-size:12.5px; }
+  table.data td{ padding:5px 6px; border-bottom:1px solid var(--accent-soft); }
+  table.data input{ width:100%; padding:7px 8px; border:2px solid var(--line); border-radius:8px; font-size:14px; font-family:'Poppins',sans-serif; background:var(--bg); text-align:center; }
+  table.data .del{ width:30px; height:30px; border:2px solid var(--line); border-radius:8px; background:var(--pink); color:#fff; cursor:pointer; font-size:13px; padding:0; box-shadow:2px 2px 0 var(--line); }
+  .data-actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+
+  .guess-box{ background:color-mix(in srgb, var(--guess) 10%, #fff); border:2px dashed var(--guess); border-radius:12px; padding:12px 14px; margin-top:12px; }
+  .guess-box .err{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:16px; color:var(--guess); }
+  .reveal-msg{ margin-top:10px; font-size:13px; line-height:1.5; }
+  .reveal-msg b{ color:var(--best); }
+
+  .predict-row{ display:flex; gap:8px; align-items:center; }
+  .predict-row input{ flex:1; min-width:0; padding:11px 12px; border-radius:11px; border:2px solid var(--line); font-size:15px; font-family:'Poppins',sans-serif; background:var(--bg); }
+  .predict-out{ margin-top:12px; font-size:15px; font-weight:600; }
+  .predict-out .big{ font-family:'Fredoka',sans-serif; font-weight:700; font-size:22px; color:var(--accent); }
+  .warn{ margin-top:10px; background:#FFF4E0; border:2px solid var(--sun); border-radius:11px; padding:10px 12px; font-size:12.5px; line-height:1.5; }
+
+  details.help{ margin:2px 20px 20px; }
+  details.help summary{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:13px; cursor:pointer; padding:6px 2px; }
+  details.help p{ font-size:13px; color:var(--ink-soft); line-height:1.6; }
+  .install-hint{ margin:0 20px; font-size:11.5px; color:var(--ink-soft); text-align:center; line-height:1.5; }
+  .app-footer{ margin:14px 20px 0; text-align:center; font-size:11px; color:var(--ink-soft); letter-spacing:.02em; opacity:.85; }
+  .school-logo-wrap{ display:flex; justify-content:center; margin-bottom:14px; }
+  .school-logo-wrap img{ max-height:72px; max-width:70%; object-fit:contain; }
+  .logo-ph{ display:none; flex-direction:column; align-items:center; justify-content:center; width:120px; height:72px; border:2px dashed var(--ink-soft); border-radius:12px; color:var(--ink-soft); text-align:center; }
+  .logo-ph span{ font-family:'Fredoka',sans-serif; font-weight:600; font-size:12px; }
+  .logo-ph small{ font-size:9px; opacity:.75; margin-top:2px; padding:0 6px; line-height:1.3; }
+  .setup-model-ok{ margin-top:10px; padding:10px 12px; border:2px solid var(--sklearn); border-radius:11px; background:var(--sklearn-soft); font-size:12.5px; color:var(--sklearn); font-weight:600; }
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div class="app" id="setup-screen">
+  <div class="setup">
+    <div class="school-logo-wrap">
+      <img id="school-logo" src="./school-logo.png" alt="School logo"
+           onerror="this.style.display='none'; document.getElementById('logo-ph').style.display='flex';">
+      <div class="logo-ph" id="logo-ph"><span>School logo</span><small>drop school-logo.png in the app folder</small></div>
+    </div>
+    <h2>Make it yours 📈</h2>
+    <p class="lead">Name your group's app, pick its colors, and load your model. This becomes <b>your</b> app.</p>
+    <div class="field">
+      <label for="in-title">App name</label>
+      <input id="in-title" type="text" maxlength="34" placeholder="e.g. Happiness Score vs GDP">
+    </div>
+    <div class="field">
+      <label>Pick a color</label>
+      <div class="swatches" id="swatches"></div>
+      <div class="hex-row">
+        <div class="hex-preview" id="hex-preview"></div>
+        <div class="hex-wrap" id="hex-wrap"><span>#</span>
+          <input id="in-hex" type="text" maxlength="6" placeholder="or type your own hex" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Load your model (optional)</label>
+      <div class="import-drop" id="setup-drop" tabindex="0" role="button" aria-label="Upload model JSON file">
+        <div class="big">📤 Tap to choose your model.json</div>
+        <div class="sub">or drag it here — you can also do this later</div>
+      </div>
+      <input type="file" id="setup-file-json" accept=".json,application/json" style="display:none;">
+      <div class="setup-model-ok" id="setup-model-ok" style="display:none;"></div>
+      <div class="import-err" id="setup-import-err" style="display:none;"></div>
+    </div>
+    <button class="btn go full" id="btn-save">Start 🚀</button>
+    <p class="app-footer">By DCS SH Informatics · Mr Ferdi 2026</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app hidden" id="app-screen">
+  <div class="appbar">
+    <div class="logo" id="logo">📈</div>
+    <div>
+      <h1 id="app-title">RegressIt</h1>
+      <p>Find the best line through your data</p>
+    </div>
+    <button class="edit-btn" id="btn-edit" title="Edit" aria-label="Edit settings">✏️</button>
+  </div>
+
+  <div class="card pop">
+    <h3>Chart</h3>
+    <canvas id="plot" width="960" height="720"></canvas>
+    <div class="toggles">
+      <button class="toggle" id="tg-best" aria-pressed="false"><span class="dot best"></span> Best-fit line</button>
+      <button class="toggle" id="tg-resid" aria-pressed="false"><span class="dot resid"></span> Error lines</button>
+      <button class="toggle" id="tg-guess" aria-pressed="false"><span class="dot guess"></span> Try your line</button>
+      <button class="toggle hidden" id="tg-sklearn" aria-pressed="false"><span class="dot sklearn"></span> Your sklearn model</button>
+    </div>
+  </div>
+
+  <div class="card pop">
+    <h3>Import a model from Python (sklearn)</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin:0 0 12px; line-height:1.5;">Trained a model in Python? Upload the exported <b>model.json</b> file, and your model’s line will appear on the chart to compare against the data.</p>
+    <div class="import-drop" id="import-drop" tabindex="0" role="button" aria-label="Upload model JSON file">
+      <div class="big">📤 Tap to choose your model.json file</div>
+      <div class="sub">or drag the file here</div>
+    </div>
+    <input type="file" id="file-json" accept=".json,application/json" style="display:none;">
+    <div class="model-info" id="model-info"></div>
+    <div class="import-err" id="import-err"></div>
+  </div>
+
+  <div class="card pop" id="guess-card" style="display:none;">
+    <h3>Try guessing your own line</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin:0 0 4px; line-height:1.5;">Drag the two orange dots on the chart to tilt and shift the line. Try to make the line fit the data points as closely as you can.</p>
+    <div class="guess-box">
+      <div>Total error of your line (sum of squared differences):</div>
+      <div class="err" id="guess-err">—</div>
+    </div>
+    <button class="btn go full" id="btn-reveal" style="margin-top:12px;">Show the mathematical best line</button>
+    <div class="reveal-msg" id="reveal-msg" style="display:none;"></div>
+  </div>
+
+  <div class="card pop">
+    <h3>Results</h3>
+    <div class="eq" id="eq">y = …</div>
+    <div class="stat-grid">
+      <div class="stat"><div class="k">Slope (m)</div><div class="v" id="stat-m">—</div></div>
+      <div class="stat"><div class="k">Intercept (b)</div><div class="v" id="stat-b">—</div></div>
+      <div class="stat"><div class="k">Fit (R²)</div><div class="v" id="stat-r2">—</div></div>
+    </div>
+    <p style="font-size:12px; color:var(--ink-soft); margin:10px 0 0; line-height:1.5;">R² near 1 means the line fits the data very well; near 0 means the relationship is weak.</p>
+  </div>
+
+  <div class="card pop">
+    <h3>Prediction</h3>
+    <div class="predict-row">
+      <input id="predict-x" type="number" inputmode="decimal" placeholder="Enter an x value">
+      <button class="btn" id="btn-predict">Predict</button>
+    </div>
+    <div class="predict-out" id="predict-out" style="display:none;"></div>
+    <div class="warn" id="predict-warn" style="display:none;"></div>
+  </div>
+
+  <div class="card pop">
+    <h3>Data</h3>
+    <table class="data">
+      <thead><tr><th id="th-x">x</th><th id="th-y">y</th><th style="width:40px;"></th></tr></thead>
+      <tbody id="data-body"></tbody>
+    </table>
+    <div class="data-actions">
+      <button class="btn sm" id="btn-add">+ Add row</button>
+      <button class="btn sm ghost" id="btn-example">Load example</button>
+      <button class="btn sm ghost" id="btn-clear">Clear</button>
+    </div>
+    <p style="font-size:12px; color:var(--ink-soft); margin:10px 0 0; line-height:1.5;" id="data-note"></p>
+  </div>
+
+  <details class="help pop" style="padding:12px 16px;">
+    <summary>❓ What do "best line" and "error" mean?</summary>
+    <p>The computer looks for the straight line whose total distance to all the data points is smallest. For each point it measures the difference (vertical distance) to the line, squares it, then adds them all up. The "best" line is the one that makes this sum of squared differences as small as possible — this is called the least squares method.</p>
+  </details>
+
+  <p class="install-hint">Tip: open your browser menu and tap <strong>Add to Home Screen</strong> to install this as an app. 📲</p>
+  <p class="app-footer">By DCS SH Informatics · Mr Ferdi 2026</p>
+</div>
+
+<script>
+const STORE = "regresiku-config-v1";
+const COLORS = [
+  {a:"#2F6DF6",s:"#DDE8FE"},{a:"#12B886",s:"#D3F9E8"},{a:"#7048E8",s:"#E5DBFF"},
+  {a:"#F76707",s:"#FFE8CC"},{a:"#E64980",s:"#FFDEEB"},{a:"#1098AD",s:"#C5F6FA"},
+  {a:"#F03E3E",s:"#FFE3E3"},{a:"#495057",s:"#E9ECEF"}
+];
+const EXAMPLE = {
+  xLabel:"Hours studied", yLabel:"Exam score",
+  data:[[1,55],[2,58],[2,63],[3,64],[4,70],[5,72],[5,68],[6,79],[7,84],[8,88]]
+};
+
+let config = { title:"", accent:COLORS[0].a, soft:COLORS[0].s };
+let data = EXAMPLE.data.map(d => ({x:d[0], y:d[1]}));
+let xLabel = EXAMPLE.xLabel, yLabel = EXAMPLE.yLabel;
+let show = { best:false, resid:false, guess:false, sklearn:false };
+let sklearnModel = null;  // { coef, intercept } dari file JSON yang diimpor
+let guess = null;      // {x1,y1,x2,y2} in data coords
+let revealed = false;
+let dragging = null;   // 'a' | 'b' | null
+
+// ---------- math ----------
+function regression(pts){
+  const n = pts.length;
+  if(n < 2) return { valid:false };
+  let sx=0, sy=0; pts.forEach(p=>{ sx+=p.x; sy+=p.y; });
+  const mx=sx/n, my=sy/n;
+  let num=0, denx=0, deny=0;
+  pts.forEach(p=>{ const dx=p.x-mx, dy=p.y-my; num+=dx*dy; denx+=dx*dx; deny+=dy*dy; });
+  if(denx === 0) return { valid:false };
+  const m = num/denx;
+  const b = my - m*mx;
+  const r2 = (deny === 0) ? 1 : (num*num)/(denx*deny);
+  return { valid:true, m, b, r2 };
+}
+function ssr(pts, m, b){ let s=0; pts.forEach(p=>{ const e=p.y-(m*p.x+b); s+=e*e; }); return s; }
+function fmt(v, d){ if(!isFinite(v)) return "—"; return (Math.round(v*Math.pow(10,d))/Math.pow(10,d)).toString(); }
+function formatEq(m,b){
+  const mm = fmt(m,2);
+  const bb = Math.abs(b);
+  const sign = b>=0 ? "+" : "\u2212";
+  return "y = " + mm + "x " + sign + " " + fmt(bb,2);
+}
+
+// ---------- plot ----------
+const cv = document.getElementById("plot");
+const ctx = cv.getContext("2d");
+let VIEW = null; // {xmin,xmax,ymin,ymax, plot rect in css px}
+
+function cssColor(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+function computeView(){
+  const xs = data.map(p=>p.x), ys = data.map(p=>p.y);
+  let xmin=Math.min(...xs), xmax=Math.max(...xs), ymin=Math.min(...ys), ymax=Math.max(...ys);
+  if(!isFinite(xmin)){ xmin=0; xmax=10; ymin=0; ymax=10; }
+  let padx=(xmax-xmin)*0.12 || 1, pady=(ymax-ymin)*0.12 || 1;
+  xmin-=padx; xmax+=padx; ymin-=pady; ymax+=pady;
+  if(ymin>0 && ymin < (ymax-ymin)*0.4) ymin = Math.min(ymin, 0); // show baseline when reasonable
+  return { xmin, xmax, ymin, ymax };
+}
+
+function resizeCanvas(){
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = cv.clientWidth;
+  const cssH = Math.round(cssW * 0.75);
+  cv.width = Math.round(cssW*dpr);
+  cv.height = Math.round(cssH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  cv._cssW = cssW; cv._cssH = cssH;
+}
+
+function toPx(x, y){
+  const m = 42, mb = 34;
+  const pw = cv._cssW - m - 12, ph = cv._cssH - mb - 12;
+  const px = m + (x - VIEW.xmin)/(VIEW.xmax - VIEW.xmin) * pw;
+  const py = 12 + (1 - (y - VIEW.ymin)/(VIEW.ymax - VIEW.ymin)) * ph;
+  return [px, py];
+}
+function toData(px, py){
+  const m = 42, mb = 34;
+  const pw = cv._cssW - m - 12, ph = cv._cssH - mb - 12;
+  const x = VIEW.xmin + (px - m)/pw * (VIEW.xmax - VIEW.xmin);
+  const y = VIEW.ymin + (1 - (py - 12)/ph) * (VIEW.ymax - VIEW.ymin);
+  return [x, y];
+}
+
+function draw(){
+  const reg = regression(data);
+  VIEW = computeView();
+  const W = cv._cssW, H = cv._cssH;
+  ctx.clearRect(0,0,W,H);
+
+  const m=42, mb=34;
+  // grid
+  ctx.strokeStyle = "#E7ECF5"; ctx.lineWidth = 1;
+  ctx.fillStyle = "#8A93A6"; ctx.font = "11px Poppins, sans-serif";
+  for(let i=0;i<=5;i++){
+    const gx = m + (W-m-12)*i/5;
+    ctx.beginPath(); ctx.moveTo(gx,12); ctx.lineTo(gx,H-mb); ctx.stroke();
+    const xv = VIEW.xmin + (VIEW.xmax-VIEW.xmin)*i/5;
+    ctx.textAlign="center"; ctx.fillText(fmt(xv,1), gx, H-mb+16);
+  }
+  for(let i=0;i<=5;i++){
+    const gy = 12 + (H-mb-12)*i/5;
+    ctx.beginPath(); ctx.moveTo(m,gy); ctx.lineTo(W-12,gy); ctx.stroke();
+    const yv = VIEW.ymax - (VIEW.ymax-VIEW.ymin)*i/5;
+    ctx.textAlign="right"; ctx.fillText(fmt(yv,0), m-6, gy+4);
+  }
+  // axis labels
+  ctx.fillStyle = "#5C6678"; ctx.font = "600 12px Poppins, sans-serif";
+  ctx.textAlign="center"; ctx.fillText(xLabel, m + (W-m-12)/2, H-6);
+  ctx.save(); ctx.translate(12, 12+(H-mb-12)/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText(yLabel, 0, 0); ctx.restore();
+
+  // residuals (to best-fit line)
+  if(show.resid && reg.valid){
+    ctx.strokeStyle = cssColor("--pink"); ctx.lineWidth = 2; ctx.setLineDash([4,3]);
+    data.forEach(p=>{
+      const [px,py] = toPx(p.x, p.y);
+      const [,pyl] = toPx(p.x, reg.m*p.x+reg.b);
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px,pyl); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
+
+  // best-fit line
+  if(show.best && reg.valid){
+    drawLine(reg.m, reg.b, cssColor("--best"), 3);
+  }
+
+  // imported sklearn model line
+  if(show.sklearn && sklearnModel){
+    drawLine(sklearnModel.coef, sklearnModel.intercept, cssColor("--sklearn"), 3);
+  }
+
+  // guess line + handles
+  if(show.guess && guess){
+    const gm = (guess.y2-guess.y1)/(guess.x2-guess.x1);
+    const gb = guess.y1 - gm*guess.x1;
+    drawLine(gm, gb, cssColor("--guess"), 3);
+    [["a",guess.x1,guess.y1],["b",guess.x2,guess.y2]].forEach(([,hx,hy])=>{
+      const [px,py] = toPx(hx,hy);
+      ctx.beginPath(); ctx.arc(px,py,10,0,7); ctx.fillStyle = cssColor("--guess");
+      ctx.fill(); ctx.lineWidth=2.5; ctx.strokeStyle="#161E2E"; ctx.stroke();
+      ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(px,py,3,0,7); ctx.fill();
+    });
+  }
+
+  // data points
+  data.forEach(p=>{
+    const [px,py] = toPx(p.x,p.y);
+    ctx.beginPath(); ctx.arc(px,py,5.5,0,7);
+    ctx.fillStyle = cssColor("--accent"); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle="#161E2E"; ctx.stroke();
+  });
+}
+function drawLine(m,b,color,w){
+  const x1=VIEW.xmin, x2=VIEW.xmax;
+  const [p1x,p1y]=toPx(x1, m*x1+b);
+  const [p2x,p2y]=toPx(x2, m*x2+b);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(42,10,cv._cssW-42-10,cv._cssH-34-8); ctx.clip();
+  ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath();
+  ctx.moveTo(p1x,p1y); ctx.lineTo(p2x,p2y); ctx.stroke();
+  ctx.restore();
+}
+
+function refreshStats(){
+  const reg = regression(data);
+  if(reg.valid){
+    document.getElementById("eq").textContent = formatEq(reg.m, reg.b);
+    document.getElementById("stat-m").textContent = fmt(reg.m,2);
+    document.getElementById("stat-b").textContent = fmt(reg.b,2);
+    document.getElementById("stat-r2").textContent = fmt(reg.r2,3);
+  } else {
+    document.getElementById("eq").textContent = "y = …";
+    ["stat-m","stat-b","stat-r2"].forEach(id=>document.getElementById(id).textContent="—");
+  }
+  if(show.guess && guess){
+    const gm=(guess.y2-guess.y1)/(guess.x2-guess.x1), gb=guess.y1-gm*guess.x1;
+    document.getElementById("guess-err").textContent = fmt(ssr(data,gm,gb),1);
+  }
+}
+
+function redraw(){ draw(); refreshStats(); }
+
+// ---------- data table ----------
+function renderTable(){
+  const tb = document.getElementById("data-body");
+  tb.innerHTML = "";
+  data.forEach((p, i)=>{
+    const tr = document.createElement("tr");
+    const tdx = document.createElement("td");
+    const ix = document.createElement("input"); ix.type="number"; ix.inputMode="decimal"; ix.value=p.x;
+    ix.addEventListener("input", ()=>{ p.x = parseFloat(ix.value); if(isNaN(p.x)) p.x=0; onDataChanged(); });
+    tdx.appendChild(ix);
+    const tdy = document.createElement("td");
+    const iy = document.createElement("input"); iy.type="number"; iy.inputMode="decimal"; iy.value=p.y;
+    iy.addEventListener("input", ()=>{ p.y = parseFloat(iy.value); if(isNaN(p.y)) p.y=0; onDataChanged(); });
+    tdy.appendChild(iy);
+    const tdd = document.createElement("td");
+    const del = document.createElement("button"); del.className="del"; del.textContent="\u2715"; del.title="Hapus";
+    del.addEventListener("click", ()=>{ data.splice(i,1); renderTable(); onDataChanged(); });
+    tdd.appendChild(del);
+    tr.append(tdx,tdy,tdd);
+    tb.appendChild(tr);
+  });
+  document.getElementById("th-x").textContent = xLabel + " (x)";
+  document.getElementById("th-y").textContent = yLabel + " (y)";
+}
+function onDataChanged(){
+  revealed = false;
+  document.getElementById("reveal-msg").style.display="none";
+  initGuessIfNeeded();
+  document.getElementById("data-note").textContent = data.length + " data points. At least 2 points are needed to compute a line.";
+  redraw();
+}
+
+function initGuessIfNeeded(){
+  const v = computeView();
+  // default guess = a gentle line across the view, so students start from a neutral position
+  if(!guess){
+    guess = { x1:v.xmin+(v.xmax-v.xmin)*0.1, y1:v.ymin+(v.ymax-v.ymin)*0.4,
+              x2:v.xmin+(v.xmax-v.xmin)*0.9, y2:v.ymin+(v.ymax-v.ymin)*0.6 };
+  } else {
+    // keep handles' x pinned to view edges region but clamp inside
+    guess.x1 = v.xmin+(v.xmax-v.xmin)*0.1;
+    guess.x2 = v.xmin+(v.xmax-v.xmin)*0.9;
+  }
+}
+
+// ---------- toggles ----------
+function bindToggle(id, key){
+  const el = document.getElementById(id);
+  el.addEventListener("click", ()=>{
+    show[key] = !show[key];
+    el.setAttribute("aria-pressed", show[key]);
+    el.querySelector(".dot").classList.toggle("on", show[key]);
+    if(key==="guess"){
+      document.getElementById("guess-card").style.display = show[key] ? "" : "none";
+      if(show[key]) initGuessIfNeeded();
+    }
+    redraw();
+  });
+}
+bindToggle("tg-best","best");
+bindToggle("tg-resid","resid");
+bindToggle("tg-guess","guess");
+bindToggle("tg-sklearn","sklearn");
+
+// ---------- import sklearn model JSON ----------
+const importDrop = document.getElementById("import-drop");
+const fileJson = document.getElementById("file-json");
+const modelInfo = document.getElementById("model-info");
+const importErr = document.getElementById("import-err");
+
+importDrop.addEventListener("click", ()=> fileJson.click());
+importDrop.addEventListener("keydown", (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); fileJson.click(); } });
+importDrop.addEventListener("dragover", (e)=>{ e.preventDefault(); importDrop.style.background="#EFE7FF"; });
+importDrop.addEventListener("dragleave", ()=>{ importDrop.style.background=""; });
+importDrop.addEventListener("drop", (e)=>{
+  e.preventDefault(); importDrop.style.background="";
+  if(e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileJson.addEventListener("change", ()=>{ if(fileJson.files[0]) handleFile(fileJson.files[0]); });
+
+function showImportError(msg){
+  importErr.textContent = "⚠️ " + msg;
+  importErr.style.display = "block";
+  modelInfo.style.display = "none";
+}
+
+function handleFile(file){
+  importErr.style.display = "none";
+  const reader = new FileReader();
+  reader.onload = () => {
+    let obj;
+    try{ obj = JSON.parse(reader.result); }
+    catch(e){ showImportError("That file isn\u2019t valid JSON. Make sure it\u2019s the file exported from Python."); return; }
+    applyImportedModel(obj);
+  };
+  reader.onerror = () => showImportError("Couldn\u2019t read the file. Please try again.");
+  reader.readAsText(file);
+}
+
+// --- JSON upload on the SETUP screen (stored and applied after Start) ---
+let pendingModelObj = null;
+const setupDrop = document.getElementById("setup-drop");
+const setupFileJson = document.getElementById("setup-file-json");
+const setupModelOk = document.getElementById("setup-model-ok");
+const setupImportErr = document.getElementById("setup-import-err");
+
+setupDrop.addEventListener("click", ()=> setupFileJson.click());
+setupDrop.addEventListener("keydown", (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); setupFileJson.click(); } });
+setupDrop.addEventListener("dragover", (e)=>{ e.preventDefault(); setupDrop.style.background="#EFE7FF"; });
+setupDrop.addEventListener("dragleave", ()=>{ setupDrop.style.background=""; });
+setupDrop.addEventListener("drop", (e)=>{ e.preventDefault(); setupDrop.style.background=""; if(e.dataTransfer.files && e.dataTransfer.files[0]) handleSetupFile(e.dataTransfer.files[0]); });
+setupFileJson.addEventListener("change", ()=>{ if(setupFileJson.files[0]) handleSetupFile(setupFileJson.files[0]); });
+
+function handleSetupFile(file){
+  setupImportErr.style.display = "none";
+  const reader = new FileReader();
+  reader.onload = () => {
+    let obj;
+    try{ obj = JSON.parse(reader.result); }
+    catch(e){ setupModelOk.style.display="none"; setupImportErr.textContent="⚠️ That file isn\u2019t valid JSON."; setupImportErr.style.display="block"; return; }
+    let c = obj.coef; if(Array.isArray(c)) c=c[0];
+    let ic = obj.intercept; if(Array.isArray(ic)) ic=ic[0];
+    if(typeof c!=="number" || typeof ic!=="number" || !isFinite(c) || !isFinite(ic)){
+      setupModelOk.style.display="none";
+      setupImportErr.textContent="⚠️ The JSON must contain numeric 'coef' and 'intercept'.";
+      setupImportErr.style.display="block";
+      pendingModelObj = null; return;
+    }
+    pendingModelObj = obj;
+    setupImportErr.style.display="none";
+    setupModelOk.textContent = "✅ Model loaded: " + (obj.xLabel||"X") + " → " + (obj.yLabel||"y") + ". It will appear when you start.";
+    setupModelOk.style.display="block";
+  };
+  reader.onerror = () => { setupImportErr.textContent="⚠️ Couldn\u2019t read the file."; setupImportErr.style.display="block"; };
+  reader.readAsText(file);
+}
+
+function applyImportedModel(obj){
+  // accept coef as number or [number]
+  let coef = obj.coef;
+  if(Array.isArray(coef)) coef = coef[0];
+  let intercept = obj.intercept;
+  if(Array.isArray(intercept)) intercept = intercept[0];
+  if(typeof coef !== "number" || typeof intercept !== "number" || !isFinite(coef) || !isFinite(intercept)){
+    showImportError("The JSON must contain numeric 'coef' and 'intercept' values. Check your Python export code.");
+    return;
+  }
+  sklearnModel = { coef, intercept };
+
+  // optional: labels and data bundled in the export
+  if(typeof obj.xLabel === "string" && obj.xLabel.trim()) xLabel = obj.xLabel.trim();
+  if(typeof obj.yLabel === "string" && obj.yLabel.trim()) yLabel = obj.yLabel.trim();
+  if(Array.isArray(obj.data) && obj.data.length){
+    const parsed = obj.data.map(d => Array.isArray(d) ? {x:+d[0], y:+d[1]} : {x:+d.x, y:+d.y})
+                           .filter(p => isFinite(p.x) && isFinite(p.y));
+    if(parsed.length) data = parsed;
+  }
+
+  // turn on the sklearn line toggle and reveal it
+  show.sklearn = true;
+  const tgS = document.getElementById("tg-sklearn");
+  tgS.classList.remove("hidden");
+  tgS.setAttribute("aria-pressed","true");
+  tgS.querySelector(".dot").classList.add("on");
+
+  // build info + comparison with RegressIt's own best fit (same least-squares method)
+  const eqm = "y = " + fmt(coef,2) + "x " + (intercept>=0?"+":"\u2212") + " " + fmt(Math.abs(intercept),2);
+  let html = "<div class='eqm'>" + eqm + "</div><div style='margin-top:4px;'>Your Python model\u2019s line (purple on the chart).</div>";
+  const reg = regression(data);
+  if(reg.valid){
+    const dCoef = Math.abs(reg.m - coef), dInt = Math.abs(reg.b - intercept);
+    if(dCoef < 0.05 && dInt < 0.5){
+      html += "<div class='cmp'>✅ Match! Your Python model\u2019s line is <b>almost identical</b> to the best-fit line this app computes. This shows sklearn and this app use the same method: least squares.</div>";
+    } else {
+      html += "<div class='cmp'>This app\u2019s own best-fit line for this data: <b>y = " + fmt(reg.m,2) + "x " + (reg.b>=0?"+":"\u2212") + " " + fmt(Math.abs(reg.b),2) + "</b>. Turn on \u201cBest-fit line\u201d to compare \u2014 if they differ a lot, the uploaded data may not match your model\u2019s training data.</div>";
+    }
+  }
+  modelInfo.innerHTML = html;
+  modelInfo.style.display = "block";
+
+  renderTable();
+  onDataChanged();
+}
+
+// reveal best line after guessing
+document.getElementById("btn-reveal").addEventListener("click", ()=>{
+  const reg = regression(data);
+  if(!reg.valid || !guess) return;
+  show.best = true;
+  document.getElementById("tg-best").setAttribute("aria-pressed","true");
+  document.getElementById("tg-best").querySelector(".dot").classList.add("on");
+  const gm=(guess.y2-guess.y1)/(guess.x2-guess.x1), gb=guess.y1-gm*guess.x1;
+  const gErr = ssr(data,gm,gb), bErr = ssr(data,reg.m,reg.b);
+  const msg = document.getElementById("reveal-msg");
+  let verdict;
+  if(gErr <= bErr*1.02) verdict = "Almost perfect! Your guess nearly matches the best line. 🎯";
+  else if(gErr <= bErr*1.5) verdict = "Good guess, but the best line still fits a little better.";
+  else verdict = "See the difference \u2014 the best line has far smaller error.";
+  msg.innerHTML = "Your line\u2019s error: <b style='color:var(--guess)'>"+fmt(gErr,1)+"</b><br>Best line\u2019s error: <b>"+fmt(bErr,1)+"</b><br>"+verdict;
+  msg.style.display="";
+  revealed = true;
+  redraw();
+});
+
+// ---------- prediction ----------
+document.getElementById("btn-predict").addEventListener("click", doPredict);
+document.getElementById("predict-x").addEventListener("keydown", e=>{ if(e.key==="Enter") doPredict(); });
+function doPredict(){
+  const reg = regression(data);
+  const out = document.getElementById("predict-out");
+  const warn = document.getElementById("predict-warn");
+  const xv = parseFloat(document.getElementById("predict-x").value);
+  if(!reg.valid || isNaN(xv)){ out.style.display="none"; warn.style.display="none"; return; }
+  const yv = reg.m*xv + reg.b;
+  out.style.display="";
+  out.innerHTML = "For " + xLabel.toLowerCase() + " = " + fmt(xv,2) + ", predicted " + yLabel.toLowerCase() + " = <span class='big'>" + fmt(yv,1) + "</span>";
+  const xs = data.map(p=>p.x); const lo=Math.min(...xs), hi=Math.max(...xs);
+  if(xv < lo || xv > hi){
+    warn.style.display="";
+    warn.innerHTML = "\u26A0\uFE0F x = "+fmt(xv,2)+" is outside the data range ("+fmt(lo,1)+" to "+fmt(hi,1)+"). Predicting beyond the data is called <b>extrapolation</b> and can be misleading \u2014 the line\u2019s pattern may not hold there.";
+  } else {
+    warn.style.display="none";
+  }
+}
+
+// ---------- pointer drag on canvas ----------
+function getPos(e){
+  const r = cv.getBoundingClientRect();
+  const cx = (e.touches? e.touches[0].clientX : e.clientX) - r.left;
+  const cy = (e.touches? e.touches[0].clientY : e.clientY) - r.top;
+  return [cx, cy];
+}
+cv.addEventListener("pointerdown", (e)=>{
+  if(!show.guess || !guess) return;
+  const [cx,cy] = getPos(e);
+  const [ax,ay] = toPx(guess.x1,guess.y1);
+  const [bx,by] = toPx(guess.x2,guess.y2);
+  const da = Math.hypot(cx-ax, cy-ay), db = Math.hypot(cx-bx, cy-by);
+  if(da<26 && da<=db){ dragging="a"; cv.setPointerCapture(e.pointerId); }
+  else if(db<26){ dragging="b"; cv.setPointerCapture(e.pointerId); }
+});
+cv.addEventListener("pointermove", (e)=>{
+  if(!dragging) return;
+  e.preventDefault();
+  const [cx,cy] = getPos(e);
+  const [,dy] = toData(cx,cy);
+  if(dragging==="a") guess.y1 = dy; else guess.y2 = dy;
+  redraw();
+});
+function endDrag(e){ if(dragging){ dragging=null; try{ cv.releasePointerCapture(e.pointerId); }catch(_){}} }
+cv.addEventListener("pointerup", endDrag);
+cv.addEventListener("pointercancel", endDrag);
+
+// ---------- data buttons ----------
+document.getElementById("btn-add").addEventListener("click", ()=>{
+  const lastX = data.length? data[data.length-1].x : 0;
+  data.push({x:lastX+1, y:0}); renderTable(); onDataChanged();
+});
+document.getElementById("btn-example").addEventListener("click", ()=>{
+  data = EXAMPLE.data.map(d=>({x:d[0],y:d[1]}));
+  xLabel = EXAMPLE.xLabel; yLabel = EXAMPLE.yLabel;
+  guess = null; renderTable(); onDataChanged();
+});
+document.getElementById("btn-clear").addEventListener("click", ()=>{
+  data = [{x:0,y:0}]; guess=null; renderTable(); onDataChanged();
+});
+
+// ---------- setup / theme ----------
+const swatchesEl=document.getElementById("swatches"), inHex=document.getElementById("in-hex"),
+      hexWrap=document.getElementById("hex-wrap"), hexPreview=document.getElementById("hex-preview"),
+      inTitle=document.getElementById("in-title");
+let draft = { accent:COLORS[0].a, soft:COLORS[0].s };
+function normHex(v){ v=(v||"").trim().replace(/^#/,"").toUpperCase(); if(/^[0-9A-F]{6}$/.test(v))return v; if(/^[0-9A-F]{3}$/.test(v))return v.split("").map(c=>c+c).join(""); return null; }
+function softFrom(hex){ const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16); const mix=c=>Math.round(c+(255-c)*0.85); const h=n=>n.toString(16).padStart(2,"0"); return "#"+h(mix(r))+h(mix(g))+h(mix(b)); }
+function applyColor(a,s,syncHex){ draft.accent=a; draft.soft=s||softFrom(normHex(a)||"2F6DF6");
+  document.documentElement.style.setProperty("--accent",draft.accent);
+  document.documentElement.style.setProperty("--accent-soft",draft.soft);
+  hexPreview.style.background=draft.accent; markSw();
+  if(syncHex){ const hx=normHex(draft.accent); inHex.value=hx||""; hexWrap.classList.remove("invalid"); }
+}
+function markSw(){ const cur=(normHex(draft.accent)||"").toUpperCase(); [...swatchesEl.children].forEach(b=>b.setAttribute("aria-pressed",(normHex(b.dataset.hex)||"").toUpperCase()===cur?"true":"false")); }
+function buildSwatches(){ swatchesEl.innerHTML=""; COLORS.forEach(c=>{ const b=document.createElement("button"); b.className="swatch"; b.type="button"; b.style.background=c.a; b.dataset.hex=c.a; b.addEventListener("click",()=>applyColor(c.a,c.s,true)); swatchesEl.appendChild(b); }); markSw(); }
+inHex.addEventListener("input",()=>{ const hx=normHex(inHex.value); if(hx){ hexWrap.classList.remove("invalid"); applyColor("#"+hx,softFrom(hx),false);} else if(inHex.value.trim()!==""){ hexWrap.classList.add("invalid"); } });
+
+function openSetup(pre){
+  if(pre){ inTitle.value=pre.title||""; draft={accent:pre.accent,soft:pre.soft}; }
+  buildSwatches(); applyColor(draft.accent,draft.soft,true);
+  document.getElementById("app-screen").classList.add("hidden");
+  document.getElementById("setup-screen").classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+document.getElementById("btn-save").addEventListener("click",()=>{
+  const t=inTitle.value.trim(); if(!t){ inTitle.focus(); inTitle.style.borderColor="#F0524B"; return; }
+  config={ title:t, accent:draft.accent, soft:draft.soft };
+  try{ localStorage.setItem(STORE, JSON.stringify(config)); }catch(e){}
+  startApp();
+});
+document.getElementById("btn-edit").addEventListener("click",()=>openSetup(config));
+
+function startApp(){
+  document.documentElement.style.setProperty("--accent",config.accent);
+  document.documentElement.style.setProperty("--accent-soft",config.soft);
+  document.getElementById("app-title").textContent=config.title;
+  document.getElementById("setup-screen").classList.add("hidden");
+  document.getElementById("app-screen").classList.remove("hidden");
+  window.scrollTo(0,0);
+  renderTable();
+  resizeCanvas();
+  initGuessIfNeeded();
+  onDataChanged();
+  // if a model was uploaded on the setup screen, apply it now
+  if(pendingModelObj){ applyImportedModel(pendingModelObj); pendingModelObj = null; }
+}
+
+window.addEventListener("resize", ()=>{ if(!document.getElementById("app-screen").classList.contains("hidden")){ resizeCanvas(); redraw(); } });
+
+// boot
+(function(){
+  let saved=null; try{ const r=localStorage.getItem(STORE); if(r) saved=JSON.parse(r); }catch(e){}
+  if(saved && saved.title){ config=saved; startApp(); } else { openSetup(null); }
+})();
+
+if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{})); }
+</script>
+</body>
+</html>
